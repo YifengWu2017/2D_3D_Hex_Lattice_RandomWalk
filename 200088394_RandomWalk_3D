@@ -1,0 +1,109 @@
+clear all; clc;
+%This code computes the RMSDs in multiple directions in a 3D hexagonal lattice
+%Total number of jumping = Total number of jumping per run * Total number of running
+NumberOfRunning_Total = 1000; %Total number of running
+NumberOfJumping_Total = 100; %Total number of jumping per run
+
+LatticeConstant = 1;
+DistortionFactor = 1;
+Idealc2aRatio = sqrt(6) / 3 * 2;
+Realc2aRatio = Idealc2aRatio * DistortionFactor;
+InitialPosition = [ 0, 0, 0]; %Initial position is set to the origin by default
+MaxDirectionAngle = 360;      %Max direction angle in degrees
+DeltaDirectionAngle = 10;     %Direction angle interval for plotting
+
+%All possible jumping directions for next jump
+JumpingVector_1 = [ 1, 0, 0];
+JumpingVector_2 = [-1, 0, 0];
+JumpingVector_3 = [ 1/2.,  sqrt(3)/2, 0];
+JumpingVector_4 = [-1/2.,  sqrt(3)/2, 0];
+JumpingVector_5 = [ 1/2., -sqrt(3)/2, 0];
+JumpingVector_6 = [-1/2., -sqrt(3)/2, 0];
+JumpingVector_7 = [ 1/2.,  sqrt(3)/6,  Realc2aRatio/2];
+JumpingVector_8 = [-1/2.,  sqrt(3)/6,  Realc2aRatio/2];
+JumpingVector_9 = [    0, -sqrt(3)/3,  Realc2aRatio/2];
+JumpingVector_10 = [ 1/2.,  sqrt(3)/6, -Realc2aRatio/2];
+JumpingVector_11 = [-1/2.,  sqrt(3)/6, -Realc2aRatio/2];
+JumpingVector_12 = [    0, -sqrt(3)/3, -Realc2aRatio/2];
+
+%Probability is inversely proportional to the atomic spacing
+%Unequal for planar and vertical directions when c/a ratio is not ideal!!!
+Probability_1 = 1 / norm(JumpingVector_1 - InitialPosition);
+Probability_2 = 1 / norm(JumpingVector_7 - InitialPosition);
+NormFactor = 1 / (6 * Probability_1 + 6 * Probability_2);
+Probability_1 = Probability_1 * NormFactor;
+Probability_2 = Probability_2 * NormFactor;
+
+PositionRecorder = zeros(NumberOfRunning_Total, NumberOfJumping_Total, 3);
+PartialDisplacementBasal = zeros(NumberOfRunning_Total, NumberOfJumping_Total);
+PartialDisplacementVerti = zeros(NumberOfRunning_Total, NumberOfJumping_Total);
+RMSDisplacementBasal = zeros(MaxDirectionAngle / DeltaDirectionAngle, 1);
+
+for NumberOfRunning_Counter = 1 : NumberOfRunning_Total
+    CurrentPosition = InitialPosition;
+    for NumberOfJumping_Counter = 1 : NumberOfJumping_Total
+        %Planar and vertical directions may be at unequal probabilities
+        DirectionDetector = rand(1, 1);
+        if DirectionDetector < 6 * Probability_1
+            JumpingDirection = randi([1, 6], 1);
+        else
+            JumpingDirection = randi([7, 12], 1);
+        end
+        switch(JumpingDirection)
+            case 1
+                CurrentPosition = CurrentPosition + JumpingVector_1;
+            case 2
+                CurrentPosition = CurrentPosition + JumpingVector_2;
+            case 3
+                CurrentPosition = CurrentPosition + JumpingVector_3;
+            case 4
+                CurrentPosition = CurrentPosition + JumpingVector_4;
+            case 5
+                CurrentPosition = CurrentPosition + JumpingVector_5;
+            case 6
+                CurrentPosition = CurrentPosition + JumpingVector_6;
+            case 7
+                CurrentPosition = CurrentPosition + JumpingVector_7;
+            case 8
+                CurrentPosition = CurrentPosition + JumpingVector_8;
+            case 9
+                CurrentPosition = CurrentPosition + JumpingVector_9;
+            case 10
+                CurrentPosition = CurrentPosition + JumpingVector_10;
+            case 11
+                CurrentPosition = CurrentPosition + JumpingVector_11;
+            otherwise
+                CurrentPosition = CurrentPosition + JumpingVector_12;
+        end
+        PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, :) = CurrentPosition - InitialPosition;
+    end
+end
+
+%RMSDs for planar directions
+for DirectionAngle = 1 : MaxDirectionAngle / DeltaDirectionAngle
+    sum = 0;
+    UnitVector_X = cosd(DirectionAngle * DeltaDirectionAngle);
+    UnitVector_Y = sind(DirectionAngle * DeltaDirectionAngle);
+    for NumberOfRunning_Counter = 1 : NumberOfRunning_Total
+        for NumberOfJumping_Counter = 1 : NumberOfJumping_Total
+            PseudoVector_X = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 1);
+            PseudoVector_Y = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 2);
+            PartialDisplacementBasal(NumberOfRunning_Counter, NumberOfJumping_Counter) = norm(dot([PseudoVector_X, PseudoVector_Y, 0], [UnitVector_X, UnitVector_Y, 0]));
+            sum = sum + PartialDisplacementBasal(NumberOfRunning_Counter, NumberOfJumping_Counter).^2;
+        end
+    end
+    RMSDisplacementBasal(DirectionAngle, 1) = sqrt(sum / (NumberOfRunning_Total * NumberOfJumping_Total));
+end
+
+%RMSD for vertical direction
+sum = 0;
+for NumberOfRunning_Counter = 1 : NumberOfRunning_Total
+    for NumberOfJumping_Counter = 1 : NumberOfJumping_Total
+        PseudoVector_X = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 1);
+        PseudoVector_Y = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 2);
+        PseudoVector_Z = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 3);
+        PartialDisplacementVerti(NumberOfRunning_Counter, NumberOfJumping_Counter) = norm(dot([PseudoVector_X, PseudoVector_Y, PseudoVector_Z], [0, 0, 1]));
+        sum = sum + PartialDisplacementVerti(NumberOfRunning_Counter, NumberOfJumping_Counter).^2;
+    end
+end
+RMSDisplacementVerti = sqrt(sum / (NumberOfRunning_Total * NumberOfJumping_Total));
