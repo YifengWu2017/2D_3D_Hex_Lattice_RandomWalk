@@ -1,0 +1,60 @@
+clear all; clc;
+%This code computes the RMSDs in multiple directions in a 2D hexagonal lattice
+%Total number of jumping = Total number of jumping per run * Total number of running
+NumberOfRunning_Total = 100; %Total number of running
+NumberOfJumping_Total = 100; %Total number of jumping per run
+
+LatticeConstant = 1;
+InitialPosition = [ 0, 0]; %Initial position is set to the origin by default
+MaxDirectionAngle = 360;   %Max direction angle in degrees
+DeltaDirectionAngle = 10;  %Direction angle interval for plotting
+
+%All possible jumping directions for next jump
+JumpingVector_1 = [ 1, 0];
+JumpingVector_2 = [-1, 0];
+JumpingVector_3 = [ 1/2.,  sqrt(3)/2];
+JumpingVector_4 = [-1/2.,  sqrt(3)/2];
+JumpingVector_5 = [ 1/2., -sqrt(3)/2];
+JumpingVector_6 = [-1/2., -sqrt(3)/2];
+
+PositionRecorder = zeros(NumberOfRunning_Total, NumberOfJumping_Total, 2);
+PartialDisplacement = zeros(NumberOfRunning_Total, NumberOfJumping_Total);
+RMSDisplacement = zeros(MaxDirectionAngle / DeltaDirectionAngle, 1);
+
+for NumberOfRunning_Counter = 1 : NumberOfRunning_Total
+    CurrentPosition = InitialPosition;
+    for NumberOfJumping_Counter = 1 : NumberOfJumping_Total
+        %All directions are at equal probability
+        JumpingDirection = randi([1, 6], 1);
+        switch(JumpingDirection)
+            case 1
+                CurrentPosition = CurrentPosition + JumpingVector_1;
+            case 2
+                CurrentPosition = CurrentPosition + JumpingVector_2;
+            case 3
+                CurrentPosition = CurrentPosition + JumpingVector_3;
+            case 4
+                CurrentPosition = CurrentPosition + JumpingVector_4;
+            case 5
+                CurrentPosition = CurrentPosition + JumpingVector_5;
+            otherwise
+                CurrentPosition = CurrentPosition + JumpingVector_6;
+        end
+        PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, :) = CurrentPosition - InitialPosition;
+    end
+end
+
+for DirectionAngle = 1 : MaxDirectionAngle / DeltaDirectionAngle
+    sum = 0;
+    UnitVector_X = cosd(DirectionAngle * DeltaDirectionAngle);
+    UnitVector_Y = sind(DirectionAngle * DeltaDirectionAngle);
+    for NumberOfRunning_Counter = 1 : NumberOfRunning_Total
+        for NumberOfJumping_Counter = 1 : NumberOfJumping_Total
+            PseudoVector_X = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 1);
+            PseudoVector_Y = PositionRecorder(NumberOfRunning_Counter, NumberOfJumping_Counter, 2);
+            PartialDisplacement(NumberOfRunning_Counter, NumberOfJumping_Counter) = norm(dot([PseudoVector_X, PseudoVector_Y], [UnitVector_X, UnitVector_Y]));
+            sum = sum + PartialDisplacement(NumberOfRunning_Counter, NumberOfJumping_Counter).^2;
+        end
+    end
+    RMSDisplacement(DirectionAngle, 1) = LatticeConstant * sqrt(sum / (NumberOfRunning_Total * NumberOfJumping_Total));
+end
